@@ -5,8 +5,8 @@
  * - Reports blocked/working state through the official Herdr Pi integration
  *   event bus (`herdr:blocked`). Herdr itself shows a notification for
  *   blocked panes, so no extra notification is sent from here.
- * - Reports ask_user progress as a pane metadata token (`ask`) that Herdr can
- *   render in sidebar agent rows via a `$ask` row slot.
+ * - Reports ask_user progress as pane metadata (`custom_status`) so Herdr can
+ *   render the pending question in sidebar agent rows.
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
@@ -84,44 +84,42 @@ function herdrRequest<T>(method: string, params: object): Promise<T | undefined>
 }
 
 const METADATA_SOURCE = "pi-ask-herdr";
-const METADATA_QUESTION_TOKEN = "ask";
-const METADATA_COUNT_TOKEN = "ask_count";
 
 /**
- * Keep the question and remaining count as separate Herdr tokens so Herdr can
- * truncate the question responsively while preserving the short count token.
+ * Build the custom_status text shown for the pending ask: the first question
+ * plus a short count suffix for batched questions.
  */
-export function askMetadataTokens(questionTexts: string[]): Record<string, string | null> {
+function askCustomStatus(questionTexts: string[]): string {
 	const questions = questionTexts.map((text) => text.replace(/[\r\n]+/g, " ").trim()).filter(Boolean);
-	return {
-		[METADATA_QUESTION_TOKEN]: questions.length > 0 ? `❓ ${questions[0]}` : null,
-		[METADATA_COUNT_TOKEN]: questions.length > 1 ? `+${questions.length - 1}` : null,
-	};
+	if (questions.length === 0) return "";
+	const base = `❓ ${questions[0]}`;
+	return questions.length > 1 ? `${base} +${questions.length - 1}` : base;
 }
 
 /** Report pending questions without allowing metadata failures to break prompting. */
 export async function reportAskMetadata(questionTexts: string[]): Promise<void> {
+	const customStatus = askCustomStatus(questionTexts);
+	if (!customStatus) return;
 	try {
 		await herdrRequest("pane.report_metadata", {
 			pane_id: process.env.HERDR_PANE_ID,
 			source: METADATA_SOURCE,
-			tokens: askMetadataTokens(questionTexts),
+			custom_status: customStatus,
 		});
 	} catch (err) {
 		console.error("[pi-ask-herdr] pane.report_metadata failed:", err);
 	}
 }
 
-/** Clear the sidebar token once the prompt is done. */
+/** Clear the sidebar status once the prompt is done. */
 export async function clearAskMetadata(): Promise<void> {
 	try {
+		// NOTE: `custom_status: null` does NOT clear in Herdr and errors with
+		// "missing metadata field to set or clear"; the explicit clear flag is required.
 		await herdrRequest("pane.report_metadata", {
 			pane_id: process.env.HERDR_PANE_ID,
 			source: METADATA_SOURCE,
-			tokens: {
-				[METADATA_QUESTION_TOKEN]: null,
-				[METADATA_COUNT_TOKEN]: null,
-			},
+			clear_custom_status: true,
 		});
 	} catch (err) {
 		console.error("[pi-ask-herdr] failed to clear pane metadata:", err);
