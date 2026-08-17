@@ -12,6 +12,17 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { createConnection } from "node:net";
 
+/**
+ * Herdr metadata is display-only. Failures (e.g. a stale `HERDR_PANE_ID`
+ * pointing at a pane that was closed and recreated) are non-fatal and must
+ * not spam the agent's terminal. Set `PI_ASK_HERDR_DEBUG=1` to see them.
+ */
+const DEBUG = process.env.PI_ASK_HERDR_DEBUG === "1";
+function warn(prefix: string, err: unknown): void {
+	if (!DEBUG) return;
+	console.error(prefix, err instanceof Error ? err.message : err);
+}
+
 export function isHerdrEnv(): boolean {
 	return process.env.HERDR_ENV === "1" && !!process.env.HERDR_SOCKET_PATH && !!process.env.HERDR_PANE_ID;
 }
@@ -20,7 +31,7 @@ export function setHerdrBlocked(pi: ExtensionAPI, active: boolean, label?: strin
 	try {
 		pi.events.emit("herdr:blocked", { active, label });
 	} catch (err) {
-		console.error("[pi-ask-herdr] failed to emit herdr:blocked:", err);
+		warn("[pi-ask-herdr] failed to emit herdr:blocked:", err);
 	}
 }
 
@@ -108,7 +119,7 @@ export async function reportAskMetadata(questionTexts: string[]): Promise<void> 
 			tokens: askMetadataTokens(questionTexts),
 		});
 	} catch (err) {
-		console.error("[pi-ask-herdr] pane.report_metadata failed:", err);
+		warn("[pi-ask-herdr] pane.report_metadata failed:", err);
 	}
 }
 
@@ -124,6 +135,6 @@ export async function clearAskMetadata(): Promise<void> {
 			},
 		});
 	} catch (err) {
-		console.error("[pi-ask-herdr] failed to clear pane metadata:", err);
+		warn("[pi-ask-herdr] failed to clear pane metadata:", err);
 	}
 }
