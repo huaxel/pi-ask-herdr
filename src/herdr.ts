@@ -37,7 +37,9 @@ export function setHerdrBlocked(pi: ExtensionAPI, active: boolean, label?: strin
 
 /**
  * Send a single JSON-RPC-style request to the Herdr Unix socket and return
- * the matching result. Herdr speaks newline-delimited JSON.
+ * the matching result. Herdr speaks newline-delimited JSON. The server keeps
+ * connections open, so resolve as soon as the matching response arrives
+ * instead of waiting for `end`.
  */
 function herdrRequest<T>(method: string, params: object): Promise<T | undefined> {
 	const socketPath = process.env.HERDR_SOCKET_PATH;
@@ -47,50 +49,62 @@ function herdrRequest<T>(method: string, params: object): Promise<T | undefined>
 
 	return new Promise<T | undefined>((resolve, reject) => {
 		let buffer = "";
+		let settled = false;
 		const client = createConnection(socketPath);
+		const finish = (value?: T, error?: Error) => {
+			if (settled) return;
+			settled = true;
+			clearTimeout(timer);
+			client.destroy();
+			if (error) reject(error);
+			else resolve(value);
+		};
+
+		const handleLine = (line: string) => {
+			if (!line.trim()) return;
+			try {
+				const msg = JSON.parse(line) as { id?: string; result?: T; error?: { message?: string } };
+				if (msg.id !== id) return;
+				if (msg.error) {
+					finish(undefined, new Error(msg.error.message ?? "herdr request failed"));
+				} else {
+					finish(msg.result);
+				}
+			} catch {
+				// Ignore malformed or unrelated lines; the timeout remains active.
+			}
+		};
 
 		const timer = setTimeout(() => {
-			client.end();
-			reject(new Error("herdr socket timeout"));
-		}, 5000);
+			finish(undefined, new Error("herdr socket timeout"));
+		}, 1000);
+		timer.unref?.();
 
 		client.on("connect", () => {
-			client.write(JSON.stringify({ id, method, params }) + "\n");
+			try {
+				client.write(JSON.stringify({ id, method, params }) + "\n");
+			} catch (error) {
+				finish(undefined, error instanceof Error ? error : new Error(String(error)));
+			}
 		});
 
 		client.on("data", (data) => {
 			buffer += data.toString("utf8");
+			const lines = buffer.split("\n");
+			buffer = lines.pop() ?? "";
+			for (const line of lines) handleLine(line.trim());
 		});
 
 		client.on("end", () => {
-			clearTimeout(timer);
-			const lines = buffer
-				.split("\n")
-				.map((l) => l.trim())
-				.filter(Boolean);
-
-			for (const line of lines) {
-				try {
-					const msg = JSON.parse(line) as { id?: string; result?: T; error?: { message: string } };
-					if (msg.id === id) {
-						if (msg.error) {
-							reject(new Error(msg.error.message));
-						} else {
-							resolve(msg.result);
-						}
-						return;
-					}
-				} catch {
-					// ignore malformed lines
-				}
-			}
-			resolve(undefined);
+			if (buffer.trim()) handleLine(buffer.trim());
+			if (!settled) finish(undefined);
 		});
 
-		client.on("error", (err) => {
-			clearTimeout(timer);
-			reject(err);
+		client.on("close", () => {
+			if (!settled) finish(undefined);
 		});
+
+		client.on("error", (err) => finish(undefined, err));
 	});
 }
 

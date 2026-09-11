@@ -1,5 +1,5 @@
 {
-  "name": "pi-ask-herdr",
+  "name": "@juanbenjumea/pi-ask-herdr",
   "version": "0.2.2",
   "description": "Pi extension that adds an ask_user tool and integrates with Herdr notifications/agent state.",
   "type": "module",
@@ -11,13 +11,13 @@
     "herdr",
     "ask-user"
   ],
-  "homepage": "https://github.com/leset0ng/pi-ask-herdr#readme",
+  "homepage": "https://github.com/huaxel/pi-ask-herdr#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/leset0ng/pi-ask-herdr.git"
+    "url": "https://github.com/huaxel/pi-ask-herdr"
   },
   "bugs": {
-    "url": "https://github.com/leset0ng/pi-ask-herdr/issues"
+    "url": "https://github.com/huaxel/pi-ask-herdr/issues"
   },
   "license": "MIT",
   "files": [
@@ -27,8 +27,8 @@
     "package.json"
   ],
   "scripts": {
-    "test": "node --experimental-transform-types --test tests/*.test.ts",
-    "typecheck": "tsc --noEmit"
+    "test": "tsx --test tests/*.test.ts",
+    "typecheck": "tsc --noEmit --strict --allowImportingTsExtensions --moduleResolution bundler --module esnext --target esnext --skipLibCheck index.ts src/*.ts"
   },
   "peerDependencies": {
     "@earendil-works/pi-ai": "*",
@@ -37,11 +37,13 @@
     "typebox": "*"
   },
   "devDependencies": {
+    "tsx": "^4.22.4",
     "typescript": "^5.0.0"
   },
   "pi": {
     "extensions": [
       "./index.ts"
     ]
-  }
+  },
+  "author": "Juan Benjumea"
 }
