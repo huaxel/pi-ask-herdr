@@ -26,7 +26,7 @@ jobs:
           set -euo pipefail
           ID_TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
             "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=npm:registry.npmjs.org" | jq -r '.value')
-          PKG=$(node -p "encodeURIComponent('@juanbenjumea/pi-agy')")
+          PKG=$(node -p "encodeURIComponent('@juanbenjumea/pi-ask-herdr')")
           RESPONSE=$(curl -sS -X POST -H "Authorization: Bearer $ID_TOKEN" \
             "https://registry.npmjs.org/-/npm/v1/oidc/token/exchange/package/$PKG")
           echo "$RESPONSE" | jq -e '.token' >/dev/null || { echo "Token exchange failed: $RESPONSE"; exit 1; }

@@ -28,7 +28,7 @@
   ],
   "scripts": {
     "test": "tsx --test tests/*.test.ts",
-    "typecheck": "tsc --noEmit --strict --allowImportingTsExtensions --moduleResolution bundler --module esnext --target esnext --skipLibCheck index.ts src/*.ts"
+    "typecheck": "tsc --noEmit --strict --allowImportingTsExtensions --moduleResolution bundler --module esnext --target esnext --skipLibCheck index.ts src/*.ts tests/*.test.ts"
   },
   "peerDependencies": {
     "@earendil-works/pi-ai": "*",
