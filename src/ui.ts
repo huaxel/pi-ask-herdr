@@ -510,12 +510,16 @@ function formatAnswer(details: AskDetails, annotateCustom: boolean): string {
 	return annotateCustom && details.custom ? `(custom) ${answer}` : answer;
 }
 
-/** Compact content returned to the agent. Questions remain available in details. */
-export function renderAgentAnswer(details: AskBatchDetails): string {
+function renderBatchLines(details: AskBatchDetails, format: (answer: AskDetails, index: number) => string): string {
 	if (details.cancelled) {
 		return "User cancelled the prompt.";
 	}
-	return details.answers.map((answer, index) => `${index + 1} -> ${formatAnswer(answer, false)}`).join("\n");
+	return details.answers.map(format).join("\n");
+}
+
+/** Compact content returned to the agent. Questions remain available in details. */
+export function renderAgentAnswer(details: AskBatchDetails): string {
+	return renderBatchLines(details, (answer, index) => `${index + 1} -> ${formatAnswer(answer, false)}`);
 }
 
 /** Answer-only result text used by the single-question tool UI. */
@@ -526,10 +530,8 @@ export function renderSingleAnswer(details: AskDetails): string {
 
 /** Detailed content rendered in the multi-question tool UI for the user. */
 export function renderBatchAnswer(details: AskBatchDetails): string {
-	if (details.cancelled) {
-		return "User cancelled the prompt.";
-	}
-	return details.answers
-		.map((answer, index) => `${index + 1}. ${answer.question} → ${formatAnswer(answer, true)}`)
-		.join("\n");
+	return renderBatchLines(
+		details,
+		(answer, index) => `${index + 1}. ${answer.question} → ${formatAnswer(answer, true)}`,
+	);
 }
