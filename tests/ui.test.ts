@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { visibleWidth } from "@earendil-works/pi-tui";
 import { askMetadataTokens } from "../src/herdr.ts";
-import { askBatchInTui } from "../src/ui.ts";
+import { askBatchInTui, renderAgentAnswer } from "../src/ui.ts";
 import type { AskBatchDetails, AskParams, AskType, OptionObject } from "../src/types.ts";
 
 const WIDTH = 24;
@@ -236,4 +236,31 @@ test("Ctrl+C still cancels the entire wrapped wizard", async () => {
 	);
 
 	assert.deepEqual(result, { answers: [], cancelled: true });
+});
+
+test("pagedown/pageup jump a viewport in long option lists", async () => {
+	// 12 options plus the trailing "Other (custom)" row: 13 items, viewport of 10.
+	const options = Array.from({ length: 12 }, (_, index) => `Option ${index}`);
+	const params: AskParams = { questions: [{ question: "Pick one", type: "select", options }] };
+
+	const jumped = await runWizard(params, ["\x1b[6~", "\r"]);
+	assert.equal(jumped.answers[0]?.answer, "Option 10");
+
+	// 0 -> 10 -> 12 (clamped on the custom row) -> 2.
+	const clamped = await runWizard(params, ["\x1b[6~", "\x1b[6~", "\x1b[5~", "\r"]);
+	assert.equal(clamped.answers[0]?.answer, "Option 2");
+});
+
+test("batch timeout reports timedOut instead of user cancellation", async () => {
+	const result = await runWizard(
+		{
+			questions: [{ question: "Pick one", type: "select", options: ["first", "second"] }],
+			timeout: 30,
+		},
+		[],
+	);
+
+	assert.equal(result.cancelled, true);
+	assert.equal(result.timedOut, true);
+	assert.equal(renderAgentAnswer(result), "The prompt timed out.");
 });

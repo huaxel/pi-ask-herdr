@@ -96,6 +96,10 @@ class OptionList {
 			this.cursor = this.cursor === 0 ? this.items.length - 1 : this.cursor - 1;
 		} else if (matchesKey(data, "down") || this.keybindings.matches(data, "tui.select.down")) {
 			this.cursor = this.cursor === this.items.length - 1 ? 0 : this.cursor + 1;
+		} else if (matchesKey(data, "pageUp") || this.keybindings.matches(data, "tui.select.pageUp")) {
+			this.cursor = Math.max(0, this.cursor - this.maxVisibleItems);
+		} else if (matchesKey(data, "pageDown") || this.keybindings.matches(data, "tui.select.pageDown")) {
+			this.cursor = Math.min(this.items.length - 1, this.cursor + this.maxVisibleItems);
 		} else if (matchesKey(data, "space") && this.mode === "multiselect") {
 			if (this.currentItem()?.isCustom) this.onCustom?.();
 			else this.toggle();
@@ -204,6 +208,9 @@ class AskWizard {
 	private deadline: number | undefined;
 	private abortListener: (() => void) | undefined;
 
+	/** Set when the batch deadline fires; read by askBatchInTui after completion. */
+	timedOut = false;
+
 	constructor(
 		private params: AskParams,
 		private tui: TUI,
@@ -224,7 +231,10 @@ class AskWizard {
 
 		if (params.timeout && params.timeout > 0) {
 			this.deadline = Date.now() + params.timeout;
-			this.timer = setTimeout(() => this.finish(null), params.timeout);
+			this.timer = setTimeout(() => {
+				this.timedOut = true;
+				this.finish(null);
+			}, params.timeout);
 			this.ticker = setInterval(() => this.tui.requestRender(), 1000);
 		}
 		if (abortSignal) {
@@ -436,11 +446,13 @@ class AskWizard {
 					parts.push("enter submit");
 					break;
 				case "confirm":
-				case "select":
 					parts.push("↑↓ move", "enter select");
 					break;
+				case "select":
+					parts.push("↑↓/pgup/pgdn move", "enter select");
+					break;
 				case "multiselect":
-					parts.push("↑↓ move", "space toggle", "enter done");
+					parts.push("↑↓/pgup/pgdn move", "space toggle", "enter done");
 					break;
 			}
 		}
@@ -487,11 +499,14 @@ export async function askBatchInTui(
 	ctx: ExtensionContext,
 	signal?: AbortSignal,
 ): Promise<AskBatchDetails> {
+	let wizard: AskWizard | undefined;
 	const result = await ctx.ui.custom<AskDetails[] | null>(
-		(tui, theme, keybindings, done) => new AskWizard(params, tui, theme, keybindings, done, signal),
+		(tui, theme, keybindings, done) => (wizard = new AskWizard(params, tui, theme, keybindings, done, signal)),
 	);
 	if (!result) {
-		return { answers: [], cancelled: true };
+		const details: AskBatchDetails = { answers: [], cancelled: true };
+		if (wizard?.timedOut) details.timedOut = true;
+		return details;
 	}
 	return { answers: result, cancelled: false };
 }
@@ -512,7 +527,7 @@ function formatAnswer(details: AskDetails, annotateCustom: boolean): string {
 
 function renderBatchLines(details: AskBatchDetails, format: (answer: AskDetails, index: number) => string): string {
 	if (details.cancelled) {
-		return "User cancelled the prompt.";
+		return details.timedOut ? "The prompt timed out." : "User cancelled the prompt.";
 	}
 	return details.answers.map(format).join("\n");
 }

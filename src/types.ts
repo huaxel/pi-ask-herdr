@@ -44,6 +44,8 @@ export interface AskDetails {
 export interface AskBatchDetails {
 	answers: AskDetails[];
 	cancelled: boolean;
+	/** True when the batch ended because the timeout fired rather than user action. */
+	timedOut?: boolean;
 }
 
 // Sentinel value used internally for the "Other (custom)" menu item.
