@@ -114,3 +114,63 @@ test("multi-question UI keeps questions out of the call title and in the result"
 	assert.match(resultText, /Second question\?.*yes/);
 	assert.equal(`${callText}\n${resultText}`.match(/First question\?/g)?.length, 1);
 });
+
+test("rejects invalid batches without starting the wizard", async () => {
+	let tool: any;
+	registerAskuserTool({
+		registerTool(definition: unknown) {
+			tool = definition;
+		},
+	} as never);
+
+	let prompted = false;
+	const ctx = {
+		mode: "tui",
+		ui: {
+			custom: async () => {
+				prompted = true;
+				return null;
+			},
+		},
+	};
+
+	const result = await tool.execute(
+		"test-call",
+		{
+			questions: [
+				{ question: "   ", type: "text" },
+				{ question: "Pick one", type: "select" },
+			],
+		},
+		undefined,
+		undefined,
+		ctx,
+	);
+
+	assert.equal(prompted, false);
+	assert.match(result.content[0].text, /questions\[0\]: question text is empty/);
+	assert.match(result.content[0].text, /questions\[1\]: type 'select' requires a non-empty options array/);
+	const details = result.details as AskBatchDetails;
+	assert.equal(details.cancelled, true);
+	assert.deepEqual(details.answers, []);
+});
+
+test("refuses to prompt outside interactive TUI mode", async () => {
+	let tool: any;
+	registerAskuserTool({
+		registerTool(definition: unknown) {
+			tool = definition;
+		},
+	} as never);
+
+	const result = await tool.execute(
+		"test-call",
+		{ questions: [{ question: "Proceed?" }] },
+		undefined,
+		undefined,
+		{ mode: "headless" },
+	);
+
+	assert.match(result.content[0].text, /only be used in interactive TUI mode/);
+	assert.equal((result.details as AskBatchDetails).cancelled, true);
+});
