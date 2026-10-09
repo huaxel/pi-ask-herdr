@@ -57,7 +57,7 @@ Then reload Pi with `/reload`.
 ### From git
 
 ```bash
-pi install git:github.com/huaxel/pi-ask-herdr@v0.2.2
+pi install git:github.com/huaxel/pi-ask-herdr@v0.2.3
 ```
 
 ### Manual
