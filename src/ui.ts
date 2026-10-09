@@ -384,7 +384,6 @@ class AskWizard {
 			type: s.type,
 			options: s.options,
 			answer: s.answer ?? null,
-			cancelled: false,
 			custom: s.custom,
 		}));
 	}
@@ -539,7 +538,6 @@ export function renderAgentAnswer(details: AskBatchDetails): string {
 
 /** Answer-only result text used by the single-question tool UI. */
 export function renderSingleAnswer(details: AskDetails): string {
-	if (details.cancelled) return "User cancelled the prompt.";
 	return formatAnswer(details, false);
 }
 

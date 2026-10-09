@@ -36,7 +36,6 @@ export interface AskDetails {
 	type: AskType;
 	options: (string | OptionObject)[] | undefined;
 	answer: string | boolean | string[] | null;
-	cancelled: boolean;
 	custom?: boolean;
 }
 

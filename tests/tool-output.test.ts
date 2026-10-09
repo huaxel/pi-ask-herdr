@@ -13,10 +13,10 @@ test("batch formatting keeps agent content compact and UI content detailed", () 
 	const details: AskBatchDetails = {
 		cancelled: false,
 		answers: [
-			{ question: "Name?", type: "text", options: undefined, answer: "Ada", cancelled: false },
-			{ question: "Proceed?", type: "confirm", options: undefined, answer: true, cancelled: false },
-			{ question: "Features?", type: "multiselect", options: ["a", "b"], answer: ["a", "b"], cancelled: false },
-			{ question: "Other?", type: "select", options: ["x"], answer: "custom value", cancelled: false, custom: true },
+			{ question: "Name?", type: "text", options: undefined, answer: "Ada" },
+			{ question: "Proceed?", type: "confirm", options: undefined, answer: true },
+			{ question: "Features?", type: "multiselect", options: ["a", "b"], answer: ["a", "b"] },
+			{ question: "Other?", type: "select", options: ["x"], answer: "custom value", custom: true },
 		],
 	};
 
@@ -97,8 +97,8 @@ test("multi-question UI keeps questions out of the call title and in the result"
 	const details: AskBatchDetails = {
 		cancelled: false,
 		answers: [
-			{ question: "First question?", type: "text", options: undefined, answer: "one", cancelled: false },
-			{ question: "Second question?", type: "confirm", options: undefined, answer: true, cancelled: false },
+			{ question: "First question?", type: "text", options: undefined, answer: "one" },
+			{ question: "Second question?", type: "confirm", options: undefined, answer: true },
 		],
 	};
 	const result = { content: [{ type: "text", text: renderAgentAnswer(details) }], details };
@@ -140,6 +140,8 @@ test("rejects invalid batches without starting the wizard", async () => {
 			questions: [
 				{ question: "   ", type: "text" },
 				{ question: "Pick one", type: "select" },
+				{ question: "Notes?", type: "text", options: ["a"] },
+				{ question: "Color?", type: "select", options: ["r"], default: "r" },
 			],
 		},
 		undefined,
@@ -150,6 +152,8 @@ test("rejects invalid batches without starting the wizard", async () => {
 	assert.equal(prompted, false);
 	assert.match(result.content[0].text, /questions\[0\]: question text is empty/);
 	assert.match(result.content[0].text, /questions\[1\]: type 'select' requires a non-empty options array/);
+	assert.match(result.content[0].text, /questions\[2\]: type 'text' does not accept options/);
+	assert.match(result.content[0].text, /questions\[3\]: 'default' is only used with type 'text'/);
 	const details = result.details as AskBatchDetails;
 	assert.equal(details.cancelled, true);
 	assert.deepEqual(details.answers, []);

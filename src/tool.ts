@@ -95,6 +95,13 @@ export function registerAskuserTool(pi: ExtensionAPI) {
 				if ((q.type === "select" || q.type === "multiselect") && (!q.options || q.options.length === 0)) {
 					problems.push(`questions[${i}]: type '${q.type}' requires a non-empty options array`);
 				}
+				const askType = q.type ?? "text";
+				if ((askType === "text" || askType === "confirm") && q.options !== undefined) {
+					problems.push(`questions[${i}]: type '${askType}' does not accept options`);
+				}
+				if (q.default !== undefined && askType !== "text") {
+					problems.push(`questions[${i}]: 'default' is only used with type 'text'`);
+				}
 			});
 			if (problems.length > 0) {
 				return {
